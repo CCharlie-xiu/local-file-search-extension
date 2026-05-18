@@ -1,4 +1,4 @@
-// popup.js — 独立窗口 UI 逻辑
+// popup.js — 独立窗口 UI
 
 const selectionDisplay = document.getElementById("selectionDisplay");
 const statusEl = document.getElementById("status");
@@ -14,18 +14,18 @@ let results = [];
 
 // ---- 初始化 ----
 document.addEventListener("DOMContentLoaded", async () => {
-  // 检查配置
-  const config = await chrome.storage.sync.get({
-    directories: [],
-    context_chars: 200,
-  });
-
-  if (!config.directories || config.directories.length === 0) {
-    waitingState.classList.add("hidden");
-    noConfigEl.classList.remove("hidden");
+  // 检查是否有内容
+  try {
+    const resp = await chrome.runtime.sendMessage({ action: "getContentInfo" });
+    if (!resp || !resp.length) {
+      waitingState.classList.add("hidden");
+      noConfigEl.classList.remove("hidden");
+    }
+  } catch {
+    // ignore
   }
 
-  // 尝试拉取当前选中文字
+  // 拉取当前选中
   try {
     const response = await chrome.runtime.sendMessage({ action: "getSelection" });
     if (response?.text) {
@@ -36,11 +36,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     // ignore
   }
 
-  // 检查缓存结果
+  // 缓存结果
   try {
     const resp = await chrome.runtime.sendMessage({ action: "getResults" });
     if (resp?.results?.length > 0) {
-      displayResults(resp.results, resp.query, resp.results.length, null);
+      displayResults(resp.results, resp.results.length, null);
     }
   } catch {
     // ignore
@@ -63,25 +63,13 @@ chrome.runtime.onMessage.addListener((msg) => {
       noConfigEl.classList.add("hidden");
       break;
 
-    case "progress":
-      showStatus("info", `📁 已搜索 ${msg.files_searched} 个文件，找到 ${msg.matches_found} 处匹配...`);
-      break;
-
     case "search-complete":
-      displayResults(msg.results, currentSearchId, msg.totalMatches, msg.durationMs);
+      displayResults(msg.results, msg.totalMatches, msg.durationMs);
       break;
 
     case "search-error":
       showStatus("error", msg.message);
       break;
-  }
-});
-
-// ---- 手动搜索 ----
-document.getElementById("searchBtn").addEventListener("click", () => {
-  const text = selectionDisplay.textContent;
-  if (text && !text.includes("在网页上选中")) {
-    chrome.runtime.sendMessage({ action: "startSearch", query: text });
   }
 });
 
@@ -95,7 +83,7 @@ document.getElementById("openSettingsBtn")?.addEventListener("click", () => {
 });
 
 // ---- 展示结果 ----
-function displayResults(resultsArray, query, totalMatches, durationMs) {
+function displayResults(resultsArray, totalMatches, durationMs) {
   results = resultsArray;
   statusEl.classList.add("hidden");
   waitingState.classList.add("hidden");
@@ -107,84 +95,43 @@ function displayResults(resultsArray, query, totalMatches, durationMs) {
   }
 
   resultListEl.innerHTML = "";
+  resultSummary.textContent = `✅ 共 ${totalMatches || results.length} 处匹配`;
 
-  // 按文件分组
-  const groups = {};
-  for (const r of results) {
-    if (!groups[r.file]) groups[r.file] = [];
-    groups[r.file].push(r);
-  }
-
-  const fileCount = Object.keys(groups).length;
-  const total = totalMatches || results.length;
-  resultSummary.textContent = `✅ 共 ${total} 处匹配（分布在 ${fileCount} 个文件）`;
-
-  if (durationMs) {
-    resultTime.textContent = `耗时 ${(durationMs / 1000).toFixed(1)}s`;
+  if (durationMs != null) {
+    resultTime.textContent = `耗时 ${(durationMs / 1000).toFixed(2)}s`;
   } else {
     resultTime.textContent = "";
   }
 
-  for (const [file, matches] of Object.entries(groups)) {
-    const group = document.createElement("div");
-    group.className = "result-group";
+  for (const m of results) {
+    const item = document.createElement("div");
+    item.className = "match-item";
 
-    // 文件头
-    const header = document.createElement("div");
-    header.className = "result-group-header";
+    const lineInfo = document.createElement("div");
+    lineInfo.className = "match-line";
+    lineInfo.textContent = `第 ${m.line} 行 · 第 ${m.column} 列`;
 
-    const pathSpan = document.createElement("span");
-    pathSpan.className = "file-path";
-    pathSpan.textContent = file;
+    const context = document.createElement("div");
+    context.className = "match-context";
 
-    const copyBtn = document.createElement("button");
-    copyBtn.className = "copy-btn";
-    copyBtn.textContent = "📋";
-    copyBtn.title = "复制文件路径";
-    copyBtn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      navigator.clipboard.writeText(file).catch(() => {});
-      copyBtn.textContent = "✅";
-      setTimeout(() => { copyBtn.textContent = "📋"; }, 1500);
-    });
+    const beforeText = escapeHtml(m.before || "");
+    const matchText = escapeHtml(m.match || "");
+    const afterText = escapeHtml(m.after || "");
 
-    header.appendChild(pathSpan);
-    header.appendChild(copyBtn);
-    group.appendChild(header);
+    context.innerHTML =
+      (beforeText ? `<span class="ellipsis">${beforeText}</span>` : "") +
+      `<span class="highlight">${matchText}</span>` +
+      (afterText ? `<span>${afterText}</span>` : "");
 
-    // 匹配项
-    for (const m of matches) {
-      const item = document.createElement("div");
-      item.className = "match-item";
-
-      const lineInfo = document.createElement("div");
-      lineInfo.className = "match-line";
-      lineInfo.textContent = `第 ${m.line} 行 · 第 ${m.column} 列${m.encoding !== "utf-8" ? ` [${m.encoding}]` : ""}`;
-
-      const context = document.createElement("div");
-      context.className = "match-context";
-
-      const beforeText = escapeHtml(m.before || "");
-      const matchText = escapeHtml(m.match || "");
-      const afterText = escapeHtml(m.after || "");
-
-      context.innerHTML =
-        (beforeText ? `<span class="ellipsis">${beforeText}</span>` : "") +
-        `<span class="highlight">${matchText}</span>` +
-        (afterText ? `<span>${afterText}</span>` : "");
-
-      item.appendChild(lineInfo);
-      item.appendChild(context);
-      group.appendChild(item);
-    }
-
-    resultListEl.appendChild(group);
+    item.appendChild(lineInfo);
+    item.appendChild(context);
+    resultListEl.appendChild(item);
   }
 
   resultsEl.classList.remove("hidden");
 }
 
-// ---- 辅助函数 ----
+// ---- 辅助 ----
 function showStatus(type, message) {
   statusEl.className = `status ${type}`;
   statusEl.textContent = message;

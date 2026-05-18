@@ -1,19 +1,14 @@
 {
   "manifest_version": 3,
-  "name": "本地文件搜索",
-  "version": "1.0.0",
-  "description": "选中网页文字，实时搜索本地文件并显示上下文内容",
+  "name": "MD 内容搜索",
+  "version": "2.0.0",
+  "description": "在设置中粘贴 .md 内容，选中网页文字时实时搜索并显示上下文",
   "permissions": [
     "contextMenus",
-    "storage",
-    "nativeMessaging",
-    "notifications",
-    "clipboardWrite",
-    "windows"
+    "storage"
   ],
   "background": {
-    "service_worker": "background.js",
-    "type": "module"
+    "service_worker": "background.js"
   },
   "action": {
     "default_icon": {
@@ -21,7 +16,7 @@
       "48": "images/icon48.png",
       "128": "images/icon128.png"
     },
-    "default_title": "本地文件搜索"
+    "default_title": "MD 内容搜索"
   },
   "options_page": "options.html",
   "content_scripts": [

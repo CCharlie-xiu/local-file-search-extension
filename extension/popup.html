@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>本地文件搜索</title>
+  <title>MD 内容搜索</title>
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
   <div id="app">
     <!-- 顶栏 -->
     <div class="header">
-      <h1 class="title">📄 本地文件搜索</h1>
+      <h1 class="title">📄 MD 内容搜索</h1>
       <div class="header-actions">
         <span id="liveIndicator" class="live-dot" title="实时监听中"></span>
         <button id="settingsBtn" class="icon-btn" title="设置">⚙</button>
@@ -19,11 +19,10 @@
 
     <!-- 当前选中 -->
     <div class="selection-bar">
-      <div class="selection-label">当前选中</div>
+      <div class="selection-label">选中的文字</div>
       <div id="selectionDisplay" class="selection-text">
         <span class="placeholder">在网页上选中文字后自动搜索...</span>
       </div>
-      <button id="searchBtn" class="btn primary" title="手动搜索">🔍</button>
     </div>
 
     <!-- 状态 -->
@@ -40,17 +39,17 @@
 
     <!-- 未配置提示 -->
     <div id="noConfig" class="empty-state hidden">
-      <div class="empty-icon">⚠️</div>
-      <p>尚未配置搜索目录</p>
-      <p class="hint">请点击右上角 ⚙ 添加要搜索的文件夹路径</p>
-      <button id="openSettingsBtn" class="btn" style="margin-top:12px">打开设置</button>
+      <div class="empty-icon">📝</div>
+      <p>尚未粘贴 .md 内容</p>
+      <p class="hint">请点击右上角 ⚙ 设置，将你的 .md 文件内容粘贴进去</p>
+      <button id="openSettingsBtn" class="btn" style="margin-top:12px">打开设置粘贴内容</button>
     </div>
 
     <!-- 等待选中 -->
     <div id="waitingState" class="empty-state">
       <div class="empty-icon">👆</div>
-      <p>在网页上选中文字后自动搜索本地文件</p>
-      <p class="hint">选中的文字和匹配结果会实时显示在此窗口</p>
+      <p class="hint-title">在网页上选中文字</p>
+      <p>扩展会自动在已保存的内容中搜索匹配项<br>并实时显示上下文</p>
     </div>
   </div>
   <script src="popup.js"></script>

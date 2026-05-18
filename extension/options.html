@@ -3,42 +3,27 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>本地文件搜索 — 设置</title>
+  <title>MD 内容搜索 — 设置</title>
   <link rel="stylesheet" href="options.css">
 </head>
 <body>
   <div id="app">
-    <h1 class="page-title">⚙ 本地文件搜索 — 设置</h1>
+    <h1 class="page-title">📄 MD 内容搜索 — 设置</h1>
 
-    <!-- 搜索目录 -->
-    <section class="section">
-      <h2 class="section-title">📁 搜索目录</h2>
-      <p class="section-desc">添加你想搜索的本地文件夹路径（支持 .md 文件）</p>
-      <div id="dirList" class="list"></div>
-      <div class="add-row">
-        <input type="text" id="dirInput" placeholder="例如 C:\Users\用户名\Documents" />
-        <button id="addDirBtn" class="btn primary">添加</button>
+    <!-- 内容区 -->
+    <section class="section content-section">
+      <div class="section-header">
+        <h2 class="section-title">📝 粘贴 .md 内容</h2>
+        <span id="contentStats" class="content-stats">0 字</span>
       </div>
-    </section>
-
-    <!-- 文件类型 -->
-    <section class="section">
-      <h2 class="section-title">📄 文件类型</h2>
-      <p class="section-desc">要搜索的文件扩展名（逗号分隔）。<code>*.*</code> 搜索所有文件。<code>*.md</code> 搜索 Markdown 文件。</p>
-      <input type="text" id="filePatterns" class="text-input" placeholder="*.md, *.txt, *.py, *.js" />
-    </section>
-
-    <!-- 排除目录 -->
-    <section class="section">
-      <h2 class="section-title">🚫 排除目录</h2>
-      <p class="section-desc">搜索时跳过的目录名称（逗号分隔）</p>
-      <input type="text" id="excludePatterns" class="text-input" placeholder="node_modules, .git, __pycache__" />
+      <p class="section-desc">把你需要搜索的 Markdown 文件内容粘贴到下方文本框，保存后即可在网页选中文字时实时搜索。</p>
+      <textarea id="contentTextarea" class="content-textarea" placeholder="在此粘贴你的 .md 文件内容...&#10;&#10;支持任意文本格式，UTF-8 编码。&#10;粘贴后点击「保存内容」即可开始使用。"></textarea>
     </section>
 
     <!-- 搜索选项 -->
     <section class="section">
       <h2 class="section-title">🔧 搜索选项</h2>
-      <div class="options-grid">
+      <div class="options-row">
         <label class="option">
           <span>区分大小写</span>
           <input type="checkbox" id="caseSensitive" />
@@ -48,29 +33,34 @@
           <input type="checkbox" id="regexMode" />
         </label>
         <label class="option">
-          <span>包含隐藏文件</span>
-          <input type="checkbox" id="includeHidden" />
-        </label>
-        <label class="option">
-          <span>最大文件大小 (MB)</span>
-          <input type="number" id="maxFileSize" min="1" max="1000" />
-        </label>
-        <label class="option">
           <span>最大匹配数</span>
-          <input type="number" id="maxResults" min="1" max="500" />
+          <input type="number" id="maxResults" min="1" max="500" value="100" />
         </label>
         <label class="option">
           <span>上下文字数</span>
-          <input type="number" id="contextChars" min="50" max="1000" />
+          <input type="number" id="contextChars" min="50" max="1000" value="200" />
         </label>
       </div>
     </section>
 
-    <!-- 保存 -->
+    <!-- 操作 -->
     <div class="actions">
-      <button id="saveBtn" class="btn primary">💾 保存设置</button>
+      <button id="saveBtn" class="btn primary">💾 保存内容</button>
+      <button id="clearBtn" class="btn danger">🗑 清空内容</button>
       <span id="saveStatus" class="save-status"></span>
     </div>
+
+    <!-- 使用说明 -->
+    <section class="section tips-section">
+      <h2 class="section-title">💡 使用说明</h2>
+      <ol class="tips">
+        <li>把你的 <strong>.md 文件</strong>内容全选复制</li>
+        <li>粘贴到上方文本框，点击「保存内容」</li>
+        <li>在任意网页<strong>选中文字</strong>，扩展会自动搜索匹配</li>
+        <li>搜索结果会自动在弹出的窗口中展示（点击扩展图标可打开窗口）</li>
+        <li>内容保存在浏览器本地，不会上传到任何服务器</li>
+      </ol>
+    </section>
   </div>
   <script src="options.js"></script>
 </body>
