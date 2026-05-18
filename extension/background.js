@@ -1,5 +1,8 @@
 // background.js — 后台服务工作线程
-// 无 Native Messaging，纯内存搜索已保存的内容
+// 纯内存搜索已保存的内容 + 独立窗口管理
+
+const WINDOW_WIDTH = 620;
+const WINDOW_HEIGHT = 520;
 
 const DEFAULT_CONFIG = {
   context_chars: 200,
@@ -14,15 +17,62 @@ let currentQuery = "";
 let searchDebounceTimer = null;
 
 // ============================================================
-//  事件：安装 → 右键菜单
+//  独立窗口管理
 // ============================================================
 
-chrome.runtime.onInstalled.addListener(() => {
+async function createWindow() {
+  try {
+    const win = await chrome.windows.create({
+      url: "popup.html",
+      type: "popup",
+      width: WINDOW_WIDTH,
+      height: WINDOW_HEIGHT,
+      focused: true,
+    });
+    if (win?.id) {
+      await chrome.storage.session.set({ windowId: win.id });
+    }
+    return win;
+  } catch {
+    return null;
+  }
+}
+
+async function focusWindow() {
+  const data = await chrome.storage.session.get("windowId");
+  const windowId = data.windowId;
+  if (windowId) {
+    try {
+      await chrome.windows.update(windowId, { focused: true });
+      return;
+    } catch {
+      // 窗口已关闭
+    }
+  }
+  createWindow();
+}
+
+// ============================================================
+//  事件：安装 / 启动 → 创建窗口 + 右键菜单
+// ============================================================
+
+chrome.runtime.onInstalled.addListener((details) => {
   chrome.contextMenus.create({
     id: "search-selection",
     title: '在已保存内容中搜索 "%s"',
     contexts: ["selection"],
   });
+  if (details.reason === "install") {
+    createWindow();
+  }
+});
+
+chrome.runtime.onStartup.addListener(() => {
+  createWindow();
+});
+
+chrome.action.onClicked.addListener(() => {
+  focusWindow();
 });
 
 // ============================================================
@@ -31,7 +81,10 @@ chrome.runtime.onInstalled.addListener(() => {
 
 chrome.contextMenus.onClicked.addListener((info) => {
   if (info.menuItemId === "search-selection" && info.selectionText) {
-    startSearch(info.selectionText.trim().substring(0, 1000));
+    focusWindow();
+    setTimeout(() => {
+      startSearch(info.selectionText.trim().substring(0, 1000));
+    }, 300);
   }
 });
 

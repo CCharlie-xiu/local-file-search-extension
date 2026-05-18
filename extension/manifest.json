@@ -5,7 +5,8 @@
   "description": "在设置中粘贴 .md 内容，选中网页文字时实时搜索并显示上下文",
   "permissions": [
     "contextMenus",
-    "storage"
+    "storage",
+    "windows"
   ],
   "background": {
     "service_worker": "background.js"
