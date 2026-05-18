@@ -1,4 +1,4 @@
-// popup.js — 独立窗口 UI
+// popup.js — 独立窗口 UI（支持 Markdown 渲染）
 
 const selectionDisplay = document.getElementById("selectionDisplay");
 const statusEl = document.getElementById("status");
@@ -119,9 +119,9 @@ function displayResults(resultsArray, totalMatches, durationMs) {
     const afterText = escapeHtml(m.after || "");
 
     context.innerHTML =
-      (beforeText ? `<span class="ellipsis">${beforeText}</span>` : "") +
-      `<span class="highlight">${matchText}</span>` +
-      (afterText ? `<span>${afterText}</span>` : "");
+      (beforeText ? `<span class="ellipsis">${renderMd(beforeText)}</span>` : "") +
+      `<span class="highlight">${renderMd(matchText)}</span>` +
+      (afterText ? `<span>${renderMd(afterText)}</span>` : "");
 
     item.appendChild(lineInfo);
     item.appendChild(context);
@@ -146,4 +146,74 @@ function escapeHtml(str) {
   const div = document.createElement("div");
   div.textContent = str;
   return div.innerHTML;
+}
+
+// ---- 内联 Markdown 渲染器 ----
+// 将已转义 HTML 中的 markdown 语法转为 HTML 标签
+function renderMd(text) {
+  if (!text) return "";
+
+  // 必须按顺序处理，避免冲突
+
+  // 1. 代码块 ```code``` → <pre><code>
+  // 先保护行内代码，避免内部格式被误转
+  let codes = [];
+  text = text.replace(/`([^`\n]+)`/g, (_, code) => {
+    codes.push(code);
+    return `\x00CODE${codes.length - 1}\x00`;
+  });
+
+  // 2. 图片 ![alt](url) → 过滤掉
+  text = text.replace(/!\[([^\]]*)\]\([^)]+\)/g, "$1");
+
+  // 3. 链接 [text](url) → <a>
+  text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" title="$1">$1</a>');
+
+  // 4. 加粗 **text** 或 __text__
+  text = text.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+  text = text.replace(/__([^_]+)__/g, "<strong>$1</strong>");
+
+  // 5. 删除线 ~~text~~
+  text = text.replace(/~~([^~]+)~~/g, "<s>$1</s>");
+
+  // 6. 斜体 *text* 或 _text_（宽松匹配，避免单个 *)
+  text = text.replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, "<em>$1</em>");
+  text = text.replace(/(?<!_)_([^_]+)_(?!_)/g, "<em>$1</em>");
+
+  // 7. 行首标记
+  const lines = text.split("\n");
+  const rendered = lines.map((line) => {
+    let l = line;
+
+    // 标题 # ~ ######
+    l = l.replace(/^#{1,6}\s+(.*)$/, '<strong class="md-heading">$1</strong>');
+
+    // 引用 >
+    l = l.replace(/^>\s+(.*)$/, '<span class="md-blockquote">$1</span>');
+
+    // 无序列表 - 或 *
+    l = l.replace(/^[\s]*[-*+]\s+(.*)$/, '<span class="md-list-item">• $1</span>');
+
+    // 有序列表 1.
+    l = l.replace(/^[\s]*\d+\.\s+(.*)$/, '<span class="md-list-item">$1</span>');
+
+    // 分隔符 --- 或 ***
+    if (/^-{3,}$/.test(l) || /^\*{3,}$/.test(l)) {
+      l = '<hr class="md-hr">';
+    }
+
+    return l;
+  });
+
+  text = rendered.join("\n");
+
+  // 8. 恢复行内代码
+  text = text.replace(/\x00CODE(\d+)\x00/g, (_, idx) => {
+    return `<code class="md-code">${codes[parseInt(idx)]}</code>`;
+  });
+
+  // 9. 换行转 <br>
+  text = text.replace(/\n/g, "<br>");
+
+  return text;
 }

@@ -296,6 +296,76 @@ body {
   color: #9ca3af;
 }
 
+/* ---- Markdown 渲染样式 ---- */
+.match-context strong {
+  font-weight: 700;
+  color: var(--text);
+}
+
+.match-context em {
+  font-style: italic;
+}
+
+.match-context code.md-code {
+  background: #e8eaed;
+  color: #d63384;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.match-context a {
+  color: var(--primary);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--border);
+}
+
+.match-context a:hover {
+  border-bottom-color: var(--primary);
+}
+
+.match-context s {
+  text-decoration: line-through;
+  color: var(--text-secondary);
+}
+
+.match-context .md-heading {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  border-left: 3px solid var(--primary);
+  padding-left: 6px;
+  margin: 2px 0;
+}
+
+.match-context .md-blockquote {
+  display: block;
+  border-left: 3px solid var(--border);
+  padding-left: 8px;
+  color: var(--text-secondary);
+  font-style: italic;
+  margin: 2px 0;
+}
+
+.match-context .md-list-item {
+  display: block;
+  margin: 1px 0;
+}
+
+.match-context hr.md-hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 4px 0;
+}
+
+.match-context br {
+  content: "";
+  display: block;
+  margin: 2px 0;
+}
+
 /* ---- 空状态 ---- */
 .empty-state {
   text-align: center;
