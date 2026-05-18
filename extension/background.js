@@ -1,8 +1,10 @@
-// background.js — Service worker for Local Text Search
-// Handles context menu, native messaging, result aggregation
+// background.js — 后台服务工作线程
+// 管理独立窗口、实时搜索、Native Messaging 通信
 
 const HOST_NAME = "com.localtextsearch.host";
 const SEARCH_TIMEOUT_MS = 30000;
+const WINDOW_WIDTH = 640;
+const WINDOW_HEIGHT = 540;
 
 const DEFAULT_CONFIG = {
   directories: [],
@@ -17,123 +19,218 @@ const DEFAULT_CONFIG = {
   max_directory_depth: 0,
 };
 
-// ---- Context Menu ----
-chrome.runtime.onInstalled.addListener(() => {
-  chrome.contextMenus.create({
-    id: "search-selection",
-    title: 'Search local files for "%s"',
-    contexts: ["selection"],
-  });
-});
-
-// ---- State ----
+// ---- 状态 ----
 let currentPort = null;
 let currentResults = [];
 let currentSearchId = null;
 let currentQuery = "";
 let searchTimer = null;
+let searchDebounceTimer = null;
 
-// ---- Context Menu Handler ----
+// ============================================================
+//  独立窗口管理
+// ============================================================
+
+async function ensureWindow() {
+  const data = await chrome.storage.session.get("windowId");
+  const windowId = data.windowId;
+
+  if (windowId) {
+    try {
+      const win = await chrome.windows.get(windowId);
+      if (win) return win;
+    } catch {
+      // 窗口已关闭，忽略
+    }
+  }
+
+  return createWindow();
+}
+
+async function createWindow() {
+  try {
+    const win = await chrome.windows.create({
+      url: "popup.html",
+      type: "popup",
+      width: WINDOW_WIDTH,
+      height: WINDOW_HEIGHT,
+      focused: true,
+    });
+    if (win?.id) {
+      await chrome.storage.session.set({ windowId: win.id });
+    }
+    return win;
+  } catch (e) {
+    console.error("创建窗口失败:", e);
+    return null;
+  }
+}
+
+async function focusWindow() {
+  const win = await ensureWindow();
+  if (win?.id) {
+    try {
+      await chrome.windows.update(win.id, { focused: true });
+    } catch {
+      // 忽略
+    }
+  }
+}
+
+// ============================================================
+//  事件：安装 / 启动
+// ============================================================
+
+chrome.runtime.onInstalled.addListener((details) => {
+  // 创建右键菜单
+  chrome.contextMenus.create({
+    id: "search-selection",
+    title: '在本地文件中搜索 "%s"',
+    contexts: ["selection"],
+  });
+
+  // 首次安装打开窗口
+  if (details.reason === "install") {
+    createWindow();
+  }
+});
+
+// Chrome 启动时打开窗口
+chrome.runtime.onStartup.addListener(() => {
+  createWindow();
+});
+
+// ============================================================
+//  事件：点击扩展图标 → 打开/聚焦窗口
+// ============================================================
+
+chrome.action.onClicked.addListener(() => {
+  focusWindow();
+});
+
+// ============================================================
+//  事件：右键菜单
+// ============================================================
+
 chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (info.menuItemId === "search-selection" && info.selectionText) {
     const query = info.selectionText.trim().substring(0, 1000);
-    startSearch(query);
+    focusWindow().then(() => {
+      setTimeout(() => startSearch(query), 300);
+    });
   }
 });
 
-// ---- Message Handlers (from popup) ----
+// ============================================================
+//  消息处理（来自 content.js 和 popup 窗口）
+// ============================================================
+
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.action === "startSearch") {
-    startSearch(request.query);
-    sendResponse({ success: true });
-  } else if (request.action === "getResults") {
-    sendResponse({
-      results: currentResults,
-      query: currentQuery,
-      searchId: currentSearchId,
-    });
-  } else if (request.action === "getSelection") {
-    // Forward to content script of active tab
-    (async () => {
-      try {
-        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-        if (tabs[0]?.id) {
-          const response = await chrome.tabs.sendMessage(tabs[0].id, { action: "getSelection" });
-          sendResponse(response);
-        } else {
+  switch (request.action) {
+
+    // content.js 实时选中文字更新
+    case "selectionChanged":
+      handleSelectionChange(request.text);
+      break;
+
+    // 窗口手动搜索
+    case "startSearch":
+      startSearch(request.query);
+      sendResponse({ success: true });
+      break;
+
+    // 窗口查询当前选中（打开时主动拉取）
+    case "getSelection":
+      (async () => {
+        try {
+          const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+          if (tabs[0]?.id) {
+            const resp = await chrome.tabs.sendMessage(tabs[0].id, { action: "getSelection" });
+            sendResponse(resp);
+          } else {
+            sendResponse({ text: "" });
+          }
+        } catch {
           sendResponse({ text: "" });
         }
-      } catch {
-        sendResponse({ text: "" });
-      }
-    })();
-    return true; // Keep channel open for async response
+      })();
+      return true;
+
+    // 窗口查询当前结果
+    case "getResults":
+      sendResponse({
+        results: currentResults,
+        query: currentQuery,
+        searchId: currentSearchId,
+      });
+      break;
   }
 });
 
-// ---- Main Search Function ----
+// ============================================================
+//  选中文字处理（防抖）
+// ============================================================
+
+function handleSelectionChange(text) {
+  if (!text) return;
+
+  if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
+  searchDebounceTimer = setTimeout(() => {
+    startSearch(text);
+  }, 500);
+}
+
+// ============================================================
+//  搜索核心逻辑
+// ============================================================
+
 function startSearch(query) {
-  // Cancel previous search
-  cleanup();
+  cleanup(); // 取消上次搜索
 
   currentQuery = query;
   currentResults = [];
   currentSearchId = "search_" + Date.now();
 
-  // Notify popup that search is starting
-  notifyPopup({ type: "search-start", query, searchId: currentSearchId });
+  notifyWindow({ type: "search-start", query, searchId: currentSearchId });
 
-  // Read config
   chrome.storage.sync.get(DEFAULT_CONFIG, (config) => {
-    // Validate config
     if (!config.directories || config.directories.length === 0) {
-      notifyPopup({
+      notifyWindow({
         type: "search-error",
-        message: "No search directories configured. Please open extension settings to add directories.",
+        message: "⚠️ 未配置搜索目录，请点击 ⚙ 设置添加",
         searchId: currentSearchId,
       });
       return;
     }
 
-    // Connect native host
     try {
       currentPort = chrome.runtime.connectNative(HOST_NAME);
-    } catch (e) {
-      notifyPopup({
+    } catch {
+      notifyWindow({
         type: "search-error",
-        message: "Failed to connect to native host. Please run scripts/install.bat to register the native messaging host.",
+        message: "⚠️ 无法连接 Native Host，请运行 scripts/install.bat",
         searchId: currentSearchId,
       });
       return;
     }
 
-    // Timeout
     searchTimer = setTimeout(() => {
-      notifyPopup({
+      notifyWindow({
         type: "search-error",
-        message: "Search timed out after 30 seconds. Try narrowing your search directories.",
+        message: "⏱ 搜索超时（30秒），请缩小搜索目录范围",
         searchId: currentSearchId,
       });
       cleanup();
     }, SEARCH_TIMEOUT_MS);
 
-    // Port listeners
     currentPort.onMessage.addListener(handleNativeMessage);
     currentPort.onDisconnect.addListener(() => {
-      if (chrome.runtime.lastError) {
-        notifyPopup({
-          type: "search-error",
-          message: "Native host disconnected: " + chrome.runtime.lastError.message,
-          searchId: currentSearchId,
-        });
-      }
       currentPort = null;
     });
 
-    // Send search request
     const msg = {
       type: "search",
-      query: query,
+      query,
       search_id: currentSearchId,
       config: {
         directories: config.directories,
@@ -152,9 +249,9 @@ function startSearch(query) {
     try {
       currentPort.postMessage(msg);
     } catch (e) {
-      notifyPopup({
+      notifyWindow({
         type: "search-error",
-        message: "Failed to send search request: " + e.message,
+        message: "发送搜索请求失败: " + e.message,
         searchId: currentSearchId,
       });
       cleanup();
@@ -162,7 +259,10 @@ function startSearch(query) {
   });
 }
 
-// ---- Native Message Handler ----
+// ============================================================
+//  Native Messaging 响应处理
+// ============================================================
+
 function handleNativeMessage(msg) {
   if (msg.search_id !== currentSearchId) return;
 
@@ -178,16 +278,20 @@ function handleNativeMessage(msg) {
         encoding: msg.encoding,
         matchIndex: msg.match_index,
       });
-      notifyPopup({ type: "match", ...msg });
       break;
 
     case "progress":
-      notifyPopup({ type: "progress", ...msg });
+      notifyWindow({
+        type: "progress",
+        files_searched: msg.files_searched,
+        matches_found: msg.matches_found,
+        searchId: currentSearchId,
+      });
       break;
 
     case "complete":
       if (searchTimer) clearTimeout(searchTimer);
-      notifyPopup({
+      notifyWindow({
         type: "search-complete",
         results: currentResults,
         totalMatches: msg.total_matches,
@@ -195,53 +299,39 @@ function handleNativeMessage(msg) {
         errors: msg.errors,
         searchId: currentSearchId,
       });
-      // Store in session for popup
-      chrome.storage.session.set({
-        lastSearch: {
-          query: currentQuery,
-          results: currentResults,
-          searchId: currentSearchId,
-          totalMatches: msg.total_matches,
-          durationMs: msg.duration_ms,
-        },
-      });
       cleanup();
       break;
 
     case "error":
-      notifyPopup({ type: "search-error", message: msg.message, searchId: currentSearchId });
+      notifyWindow({ type: "search-error", message: msg.message, searchId: currentSearchId });
       if (msg.fatal) cleanup();
       break;
-
-    case "pong":
-      // Health check response
-      break;
   }
 }
 
-// ---- Notify Popup ----
-function notifyPopup(data) {
+// ============================================================
+//  推送消息到独立窗口
+// ============================================================
+
+function notifyWindow(data) {
   try {
-    chrome.runtime.sendMessage({ source: "background", ...data }).catch(() => {
-      // Popup may not be open — that's fine
-    });
+    chrome.runtime.sendMessage({ source: "background", ...data }).catch(() => {});
   } catch {
-    // Ignore
+    // ignore
   }
 }
 
-// ---- Cleanup ----
+// ============================================================
+//  清理
+// ============================================================
+
 function cleanup() {
   if (searchTimer) {
     clearTimeout(searchTimer);
     searchTimer = null;
   }
   if (currentPort) {
-    try {
-      currentPort.disconnect();
-    } catch {
-      // Already disconnected
-    }
+    try { currentPort.disconnect(); } catch { /* ignore */ }
     currentPort = null;
   }
 }

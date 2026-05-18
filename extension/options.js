@@ -1,4 +1,4 @@
-// options.js — Settings page for Local Text Search
+// options.js — 设置页逻辑
 
 const DEFAULT_CONFIG = {
   directories: [],
@@ -13,7 +13,7 @@ const DEFAULT_CONFIG = {
   max_directory_depth: 0,
 };
 
-// DOM refs
+// DOM
 const dirListEl = document.getElementById("dirList");
 const dirInput = document.getElementById("dirInput");
 const addDirBtn = document.getElementById("addDirBtn");
@@ -30,7 +30,7 @@ const saveStatus = document.getElementById("saveStatus");
 
 let currentConfig = { ...DEFAULT_CONFIG };
 
-// ---- Load ----
+// ---- 加载配置 ----
 async function loadConfig() {
   const config = await chrome.storage.sync.get(DEFAULT_CONFIG);
   currentConfig = config;
@@ -46,15 +46,15 @@ async function loadConfig() {
   contextChars.value = config.context_chars;
 }
 
-// ---- Render Directory List ----
+// ---- 渲染目录列表 ----
 function renderDirList(dirs) {
   dirListEl.innerHTML = "";
   if (!dirs || dirs.length === 0) {
     const empty = document.createElement("div");
     empty.className = "list-item";
-    empty.style.color = "#999";
+    empty.style.color = "#9ca3af";
     empty.style.fontStyle = "italic";
-    empty.textContent = "No directories added yet";
+    empty.textContent = "尚未添加任何目录";
     dirListEl.appendChild(empty);
     return;
   }
@@ -67,11 +67,10 @@ function renderDirList(dirs) {
     const removeBtn = document.createElement("button");
     removeBtn.className = "remove-btn";
     removeBtn.textContent = "×";
-    removeBtn.title = "Remove directory";
+    removeBtn.title = "删除此目录";
     removeBtn.addEventListener("click", () => {
-      const newDirs = currentConfig.directories.filter((d) => d !== dir);
-      currentConfig.directories = newDirs;
-      renderDirList(newDirs);
+      currentConfig.directories = currentConfig.directories.filter((d) => d !== dir);
+      renderDirList(currentConfig.directories);
       markDirty();
     });
 
@@ -80,18 +79,18 @@ function renderDirList(dirs) {
   }
 }
 
-// ---- Add Directory ----
+// ---- 添加目录 ----
 addDirBtn.addEventListener("click", () => {
   const path = dirInput.value.trim();
   if (!path) return;
 
   if (currentConfig.directories.includes(path)) {
-    saveStatus.textContent = "Directory already exists";
-    saveStatus.style.color = "#e74c3c";
+    saveStatus.textContent = "⚠️ 目录已存在";
+    saveStatus.style.color = "#f59e0b";
     return;
   }
 
-  // Normalize path separators
+  // 统一分隔符
   const normalized = path.replace(/\\/g, "/");
   currentConfig.directories.push(normalized);
   renderDirList(currentConfig.directories);
@@ -103,7 +102,7 @@ dirInput.addEventListener("keydown", (e) => {
   if (e.key === "Enter") addDirBtn.click();
 });
 
-// ---- Collect Values ----
+// ---- 收集值 ----
 function collectConfig() {
   return {
     directories: currentConfig.directories,
@@ -125,38 +124,31 @@ function collectConfig() {
   };
 }
 
-// ---- Mark Dirty ----
-let dirtyTimeout = null;
+// ---- 标记未保存 ----
 function markDirty() {
-  if (dirtyTimeout) clearTimeout(dirtyTimeout);
-  saveStatus.textContent = "Unsaved changes";
-  saveStatus.style.color = "#f39c12";
+  saveStatus.textContent = "有未保存的更改";
+  saveStatus.style.color = "#f59e0b";
 }
 
-// ---- Save ----
+// ---- 保存 ----
 saveBtn.addEventListener("click", async () => {
   const config = collectConfig();
 
   if (!config.directories || config.directories.length === 0) {
-    saveStatus.textContent = "Please add at least one directory";
-    saveStatus.style.color = "#e74c3c";
+    saveStatus.textContent = "⚠️ 请至少添加一个搜索目录";
+    saveStatus.style.color = "#ef4444";
     return;
   }
 
   await chrome.storage.sync.set(config);
   currentConfig = config;
 
-  saveStatus.textContent = "Settings saved! ✓";
-  saveStatus.style.color = "#27ae60";
-  setTimeout(() => {
-    saveStatus.textContent = "";
-  }, 3000);
+  saveStatus.textContent = "✅ 设置已保存！";
+  saveStatus.style.color = "#10b981";
+  setTimeout(() => { saveStatus.textContent = ""; }, 3000);
 });
 
-// ---- Init ----
-document.addEventListener("DOMContentLoaded", loadConfig);
-
-// Auto-save on input changes with debounce
+// ---- 自动保存 ----
 const autoSave = (() => {
   let timer = null;
   return () => {
@@ -164,8 +156,8 @@ const autoSave = (() => {
     timer = setTimeout(() => {
       const config = collectConfig();
       chrome.storage.sync.set(config).catch(() => {});
-      saveStatus.textContent = "Saved ✓";
-      saveStatus.style.color = "#27ae60";
+      saveStatus.textContent = "✅ 已自动保存";
+      saveStatus.style.color = "#10b981";
     }, 1500);
   };
 })();
@@ -176,3 +168,6 @@ const autoSave = (() => {
 [caseSensitive, regexMode, includeHidden].forEach((el) => {
   el.addEventListener("change", autoSave);
 });
+
+// ---- 初始化 ----
+document.addEventListener("DOMContentLoaded", loadConfig);

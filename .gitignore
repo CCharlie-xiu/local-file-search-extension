@@ -21,3 +21,4 @@ Thumbs.db
 
 # Claude Code local settings
 .claude/settings.local.json
+local-text-search-extension.zip

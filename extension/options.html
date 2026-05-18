@@ -1,74 +1,74 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Local Text Search — Settings</title>
+  <title>本地文件搜索 — 设置</title>
   <link rel="stylesheet" href="options.css">
 </head>
 <body>
   <div id="app">
-    <h1 class="page-title">Local Text Search Settings</h1>
+    <h1 class="page-title">⚙ 本地文件搜索 — 设置</h1>
 
-    <!-- Directories -->
+    <!-- 搜索目录 -->
     <section class="section">
-      <h2 class="section-title">Search Directories</h2>
-      <p class="section-desc">Add the directories where you want to search for text.</p>
+      <h2 class="section-title">📁 搜索目录</h2>
+      <p class="section-desc">添加你想搜索的本地文件夹路径（支持 .md 文件）</p>
       <div id="dirList" class="list"></div>
       <div class="add-row">
-        <input type="text" id="dirInput" placeholder="e.g. C:\Users\lin\Documents" />
-        <button id="addDirBtn" class="btn primary">Add</button>
+        <input type="text" id="dirInput" placeholder="例如 C:\Users\用户名\Documents" />
+        <button id="addDirBtn" class="btn primary">添加</button>
       </div>
     </section>
 
-    <!-- File Patterns -->
+    <!-- 文件类型 -->
     <section class="section">
-      <h2 class="section-title">File Patterns</h2>
-      <p class="section-desc">Which file types to search (comma-separated). <code>*.*</code> searches all files.</p>
-      <input type="text" id="filePatterns" class="text-input" placeholder="*.txt, *.md, *.py, *.js" />
+      <h2 class="section-title">📄 文件类型</h2>
+      <p class="section-desc">要搜索的文件扩展名（逗号分隔）。<code>*.*</code> 搜索所有文件。<code>*.md</code> 搜索 Markdown 文件。</p>
+      <input type="text" id="filePatterns" class="text-input" placeholder="*.md, *.txt, *.py, *.js" />
     </section>
 
-    <!-- Exclude Patterns -->
+    <!-- 排除目录 -->
     <section class="section">
-      <h2 class="section-title">Exclude Directories</h2>
-      <p class="section-desc">Directory names to skip during search (comma-separated).</p>
+      <h2 class="section-title">🚫 排除目录</h2>
+      <p class="section-desc">搜索时跳过的目录名称（逗号分隔）</p>
       <input type="text" id="excludePatterns" class="text-input" placeholder="node_modules, .git, __pycache__" />
     </section>
 
-    <!-- Options Grid -->
+    <!-- 搜索选项 -->
     <section class="section">
-      <h2 class="section-title">Search Options</h2>
+      <h2 class="section-title">🔧 搜索选项</h2>
       <div class="options-grid">
         <label class="option">
-          <span>Case Sensitive</span>
+          <span>区分大小写</span>
           <input type="checkbox" id="caseSensitive" />
         </label>
         <label class="option">
-          <span>Regex Mode</span>
+          <span>正则表达式模式</span>
           <input type="checkbox" id="regexMode" />
         </label>
         <label class="option">
-          <span>Include Hidden Files</span>
+          <span>包含隐藏文件</span>
           <input type="checkbox" id="includeHidden" />
         </label>
         <label class="option">
-          <span>Max File Size (MB)</span>
+          <span>最大文件大小 (MB)</span>
           <input type="number" id="maxFileSize" min="1" max="1000" />
         </label>
         <label class="option">
-          <span>Max Results</span>
+          <span>最大匹配数</span>
           <input type="number" id="maxResults" min="1" max="500" />
         </label>
         <label class="option">
-          <span>Context Characters</span>
+          <span>上下文字数</span>
           <input type="number" id="contextChars" min="50" max="1000" />
         </label>
       </div>
     </section>
 
-    <!-- Save -->
+    <!-- 保存 -->
     <div class="actions">
-      <button id="saveBtn" class="btn primary">Save Settings</button>
+      <button id="saveBtn" class="btn primary">💾 保存设置</button>
       <span id="saveStatus" class="save-status"></span>
     </div>
   </div>

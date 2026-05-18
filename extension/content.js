@@ -1,17 +1,40 @@
-// content.js — Detects text selection on web pages
+// content.js — 实时捕捉选中文字并发送到 background
 
 let currentSelection = "";
+let debounceTimer = null;
+
+function sendSelection(text) {
+  if (text) {
+    chrome.runtime.sendMessage({ action: "selectionChanged", text: text }).catch(() => {});
+  }
+}
 
 document.addEventListener("mouseup", () => {
-  const selection = window.getSelection();
-  currentSelection = selection ? selection.toString().trim() : "";
+  const sel = window.getSelection();
+  const text = sel ? sel.toString().trim() : "";
+
+  if (text && text !== currentSelection) {
+    currentSelection = text;
+
+    if (debounceTimer) clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
+      sendSelection(text);
+    }, 400);
+  }
 });
 
 document.addEventListener("keyup", (e) => {
-  // Also capture Ctrl+C or Cmd+C style selections
   if (e.key === "c" && (e.ctrlKey || e.metaKey)) {
-    const selection = window.getSelection();
-    currentSelection = selection ? selection.toString().trim() : "";
+    const sel = window.getSelection();
+    const text = sel ? sel.toString().trim() : "";
+    if (text) {
+      currentSelection = text;
+
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        sendSelection(text);
+      }, 400);
+    }
   }
 });
 

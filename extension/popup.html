@@ -1,49 +1,56 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Local Text Search</title>
+  <title>本地文件搜索</title>
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
   <div id="app">
-    <!-- Header -->
+    <!-- 顶栏 -->
     <div class="header">
-      <h1 class="title">Local Text Search</h1>
-      <button id="settingsBtn" class="icon-btn" title="Settings">&#9881;</button>
+      <h1 class="title">📄 本地文件搜索</h1>
+      <div class="header-actions">
+        <span id="liveIndicator" class="live-dot" title="实时监听中"></span>
+        <button id="settingsBtn" class="icon-btn" title="设置">⚙</button>
+      </div>
     </div>
 
-    <!-- Search Bar -->
-    <div class="search-bar">
-      <input type="text" id="searchInput" placeholder="Enter text to search in local files..." />
-      <button id="searchBtn" class="btn primary">Search</button>
+    <!-- 当前选中 -->
+    <div class="selection-bar">
+      <div class="selection-label">当前选中</div>
+      <div id="selectionDisplay" class="selection-text">
+        <span class="placeholder">在网页上选中文字后自动搜索...</span>
+      </div>
+      <button id="searchBtn" class="btn primary" title="手动搜索">🔍</button>
     </div>
 
-    <!-- Status -->
+    <!-- 状态 -->
     <div id="status" class="status hidden"></div>
 
-    <!-- Results -->
+    <!-- 搜索结果 -->
     <div id="results" class="results hidden">
       <div class="results-header">
-        <span id="resultCount"></span>
+        <span id="resultSummary"></span>
         <span id="resultTime" class="time"></span>
       </div>
       <div id="resultList" class="result-list"></div>
     </div>
 
-    <!-- Empty state -->
-    <div id="emptyState" class="empty-state">
-      <div class="empty-icon">&#128269;</div>
-      <p>Select text on any page, right-click, and choose<br><strong>"Search local files for..."</strong></p>
-      <p class="hint">Or type a query above and click Search.</p>
+    <!-- 未配置提示 -->
+    <div id="noConfig" class="empty-state hidden">
+      <div class="empty-icon">⚠️</div>
+      <p>尚未配置搜索目录</p>
+      <p class="hint">请点击右上角 ⚙ 添加要搜索的文件夹路径</p>
+      <button id="openSettingsBtn" class="btn" style="margin-top:12px">打开设置</button>
     </div>
 
-    <!-- No config warning -->
-    <div id="noConfig" class="empty-state hidden">
-      <div class="empty-icon">&#9888;</div>
-      <p>No search directories configured.</p>
-      <button id="openSettingsBtn" class="btn">Open Settings</button>
+    <!-- 等待选中 -->
+    <div id="waitingState" class="empty-state">
+      <div class="empty-icon">👆</div>
+      <p>在网页上选中文字后自动搜索本地文件</p>
+      <p class="hint">选中的文字和匹配结果会实时显示在此窗口</p>
     </div>
   </div>
   <script src="popup.js"></script>

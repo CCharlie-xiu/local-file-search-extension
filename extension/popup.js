@@ -1,75 +1,70 @@
-// popup.js — Popup UI logic for Local Text Search
+// popup.js — 独立窗口 UI 逻辑
 
-const searchInput = document.getElementById("searchInput");
-const searchBtn = document.getElementById("searchBtn");
+const selectionDisplay = document.getElementById("selectionDisplay");
 const statusEl = document.getElementById("status");
 const resultsEl = document.getElementById("results");
 const resultListEl = document.getElementById("resultList");
-const resultCountEl = document.getElementById("resultCount");
-const resultTimeEl = document.getElementById("resultTime");
-const emptyStateEl = document.getElementById("emptyState");
+const resultSummary = document.getElementById("resultSummary");
+const resultTime = document.getElementById("resultTime");
+const waitingState = document.getElementById("waitingState");
 const noConfigEl = document.getElementById("noConfig");
 
 let currentSearchId = null;
 let results = [];
 
-// ---- Init ----
+// ---- 初始化 ----
 document.addEventListener("DOMContentLoaded", async () => {
-  // Check config
+  // 检查配置
   const config = await chrome.storage.sync.get({
     directories: [],
     context_chars: 200,
   });
 
   if (!config.directories || config.directories.length === 0) {
-    emptyStateEl.classList.add("hidden");
+    waitingState.classList.add("hidden");
     noConfigEl.classList.remove("hidden");
   }
 
-  // Load previous selection
+  // 尝试拉取当前选中文字
   try {
-    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (tabs[0]?.id) {
-      const response = await chrome.tabs.sendMessage(tabs[0].id, { action: "getSelection" });
-      if (response?.text) {
-        searchInput.value = response.text;
-      }
+    const response = await chrome.runtime.sendMessage({ action: "getSelection" });
+    if (response?.text) {
+      selectionDisplay.textContent = response.text;
+      selectionDisplay.classList.remove("placeholder");
     }
   } catch {
-    // Content script might not be loaded
+    // ignore
   }
 
-  // Check if there are cached results from background
-  const sessionData = await chrome.storage.session.get("lastSearch");
-  if (sessionData.lastSearch) {
-    displayResults(
-      sessionData.lastSearch.results,
-      sessionData.lastSearch.query,
-      sessionData.lastSearch.totalMatches,
-      sessionData.lastSearch.durationMs
-    );
+  // 检查缓存结果
+  try {
+    const resp = await chrome.runtime.sendMessage({ action: "getResults" });
+    if (resp?.results?.length > 0) {
+      displayResults(resp.results, resp.query, resp.results.length, null);
+    }
+  } catch {
+    // ignore
   }
 });
 
-// ---- Listen for background messages ----
+// ---- 监听 background 消息 ----
 chrome.runtime.onMessage.addListener((msg) => {
   if (msg.source !== "background") return;
 
   switch (msg.type) {
     case "search-start":
       currentSearchId = msg.searchId;
-      showStatus("info", `Searching for "${truncate(msg.query, 50)}"...`);
+      selectionDisplay.textContent = msg.query;
+      selectionDisplay.classList.remove("placeholder");
+      showStatus("info", `🔍 正在搜索 "${truncate(msg.query, 60)}"...`);
       results = [];
       resultsEl.classList.add("hidden");
-      emptyStateEl.classList.add("hidden");
+      waitingState.classList.add("hidden");
       noConfigEl.classList.add("hidden");
       break;
 
-    case "match":
-      break;
-
     case "progress":
-      showStatus("info", `Searched ${msg.files_searched} files, found ${msg.matches_found} matches...`);
+      showStatus("info", `📁 已搜索 ${msg.files_searched} 个文件，找到 ${msg.matches_found} 处匹配...`);
       break;
 
     case "search-complete":
@@ -82,23 +77,15 @@ chrome.runtime.onMessage.addListener((msg) => {
   }
 });
 
-// ---- Search Button ----
-searchBtn.addEventListener("click", () => {
-  const query = searchInput.value.trim();
-  if (!query) {
-    showStatus("error", "Please enter text to search for.");
-    return;
-  }
-  chrome.runtime.sendMessage({ action: "startSearch", query });
-});
-
-searchInput.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") {
-    searchBtn.click();
+// ---- 手动搜索 ----
+document.getElementById("searchBtn").addEventListener("click", () => {
+  const text = selectionDisplay.textContent;
+  if (text && !text.includes("在网页上选中")) {
+    chrome.runtime.sendMessage({ action: "startSearch", query: text });
   }
 });
 
-// ---- Settings Button ----
+// ---- 设置按钮 ----
 document.getElementById("settingsBtn").addEventListener("click", () => {
   chrome.runtime.openOptionsPage();
 });
@@ -107,22 +94,21 @@ document.getElementById("openSettingsBtn")?.addEventListener("click", () => {
   chrome.runtime.openOptionsPage();
 });
 
-// ---- Display Results ----
+// ---- 展示结果 ----
 function displayResults(resultsArray, query, totalMatches, durationMs) {
-  currentSearchId = query; // used as key
   results = resultsArray;
   statusEl.classList.add("hidden");
-  emptyStateEl.classList.add("hidden");
+  waitingState.classList.add("hidden");
   noConfigEl.classList.add("hidden");
 
   if (results.length === 0) {
-    showStatus("info", "No matches found.");
+    showStatus("info", "❌ 未找到匹配内容");
     return;
   }
 
   resultListEl.innerHTML = "";
 
-  // Group by file
+  // 按文件分组
   const groups = {};
   for (const r of results) {
     if (!groups[r.file]) groups[r.file] = [];
@@ -130,18 +116,20 @@ function displayResults(resultsArray, query, totalMatches, durationMs) {
   }
 
   const fileCount = Object.keys(groups).length;
-  resultCountEl.textContent = `${totalMatches || results.length} matches in ${fileCount} files`;
+  const total = totalMatches || results.length;
+  resultSummary.textContent = `✅ 共 ${total} 处匹配（分布在 ${fileCount} 个文件）`;
 
   if (durationMs) {
-    resultTimeEl.textContent = `(${(durationMs / 1000).toFixed(1)}s)`;
+    resultTime.textContent = `耗时 ${(durationMs / 1000).toFixed(1)}s`;
   } else {
-    resultTimeEl.textContent = "";
+    resultTime.textContent = "";
   }
 
   for (const [file, matches] of Object.entries(groups)) {
     const group = document.createElement("div");
     group.className = "result-group";
 
+    // 文件头
     const header = document.createElement("div");
     header.className = "result-group-header";
 
@@ -152,23 +140,26 @@ function displayResults(resultsArray, query, totalMatches, durationMs) {
     const copyBtn = document.createElement("button");
     copyBtn.className = "copy-btn";
     copyBtn.textContent = "📋";
-    copyBtn.title = "Copy file path";
+    copyBtn.title = "复制文件路径";
     copyBtn.addEventListener("click", (e) => {
       e.stopPropagation();
       navigator.clipboard.writeText(file).catch(() => {});
+      copyBtn.textContent = "✅";
+      setTimeout(() => { copyBtn.textContent = "📋"; }, 1500);
     });
 
     header.appendChild(pathSpan);
     header.appendChild(copyBtn);
     group.appendChild(header);
 
+    // 匹配项
     for (const m of matches) {
       const item = document.createElement("div");
       item.className = "match-item";
 
       const lineInfo = document.createElement("div");
       lineInfo.className = "match-line";
-      lineInfo.textContent = `Line ${m.line}:${m.column}${m.encoding !== "utf-8" ? ` [${m.encoding}]` : ""}`;
+      lineInfo.textContent = `第 ${m.line} 行 · 第 ${m.column} 列${m.encoding !== "utf-8" ? ` [${m.encoding}]` : ""}`;
 
       const context = document.createElement("div");
       context.className = "match-context";
@@ -193,7 +184,7 @@ function displayResults(resultsArray, query, totalMatches, durationMs) {
   resultsEl.classList.remove("hidden");
 }
 
-// ---- Helpers ----
+// ---- 辅助函数 ----
 function showStatus(type, message) {
   statusEl.className = `status ${type}`;
   statusEl.textContent = message;
