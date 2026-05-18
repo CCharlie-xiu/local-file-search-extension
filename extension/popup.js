@@ -114,12 +114,10 @@ function displayResults(resultsArray, totalMatches, durationMs) {
     const context = document.createElement("div");
     context.className = "match-context";
 
-    const beforeText = escapeHtml(m.before || "");
     const matchText = escapeHtml(m.match || "");
     const afterText = escapeHtml(m.after || "");
 
     context.innerHTML =
-      (beforeText ? `<span class="ellipsis">${renderMd(beforeText)}</span>` : "") +
       `<span class="highlight">${renderMd(matchText)}</span>` +
       (afterText ? `<span>${renderMd(afterText)}</span>` : "");
 
