@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Local Text Search — Settings</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <div id="app">
+    <h1 class="page-title">Local Text Search Settings</h1>
+
+    <!-- Directories -->
+    <section class="section">
+      <h2 class="section-title">Search Directories</h2>
+      <p class="section-desc">Add the directories where you want to search for text.</p>
+      <div id="dirList" class="list"></div>
+      <div class="add-row">
+        <input type="text" id="dirInput" placeholder="e.g. C:\Users\lin\Documents" />
+        <button id="addDirBtn" class="btn primary">Add</button>
+      </div>
+    </section>
+
+    <!-- File Patterns -->
+    <section class="section">
+      <h2 class="section-title">File Patterns</h2>
+      <p class="section-desc">Which file types to search (comma-separated). <code>*.*</code> searches all files.</p>
+      <input type="text" id="filePatterns" class="text-input" placeholder="*.txt, *.md, *.py, *.js" />
+    </section>
+
+    <!-- Exclude Patterns -->
+    <section class="section">
+      <h2 class="section-title">Exclude Directories</h2>
+      <p class="section-desc">Directory names to skip during search (comma-separated).</p>
+      <input type="text" id="excludePatterns" class="text-input" placeholder="node_modules, .git, __pycache__" />
+    </section>
+
+    <!-- Options Grid -->
+    <section class="section">
+      <h2 class="section-title">Search Options</h2>
+      <div class="options-grid">
+        <label class="option">
+          <span>Case Sensitive</span>
+          <input type="checkbox" id="caseSensitive" />
+        </label>
+        <label class="option">
+          <span>Regex Mode</span>
+          <input type="checkbox" id="regexMode" />
+        </label>
+        <label class="option">
+          <span>Include Hidden Files</span>
+          <input type="checkbox" id="includeHidden" />
+        </label>
+        <label class="option">
+          <span>Max File Size (MB)</span>
+          <input type="number" id="maxFileSize" min="1" max="1000" />
+        </label>
+        <label class="option">
+          <span>Max Results</span>
+          <input type="number" id="maxResults" min="1" max="500" />
+        </label>
+        <label class="option">
+          <span>Context Characters</span>
+          <input type="number" id="contextChars" min="50" max="1000" />
+        </label>
+      </div>
+    </section>
+
+    <!-- Save -->
+    <div class="actions">
+      <button id="saveBtn" class="btn primary">Save Settings</button>
+      <span id="saveStatus" class="save-status"></span>
+    </div>
+  </div>
+  <script src="options.js"></script>
+</body>
+</html>

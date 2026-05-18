@@ -1,0 +1,7 @@
+{
+  "name": "com.localtextsearch.host",
+  "description": "Native host for Local Text Search Chrome extension — searches local files for selected text",
+  "path": "host.bat",
+  "type": "stdio",
+  "allowed_origins": []
+}

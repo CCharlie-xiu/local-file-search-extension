@@ -1,0 +1,38 @@
+{
+  "manifest_version": 3,
+  "name": "Local Text Search",
+  "version": "1.0.0",
+  "description": "Search selected text in local files — right-click any text to find matches in your configured directories",
+  "permissions": [
+    "contextMenus",
+    "storage",
+    "nativeMessaging",
+    "notifications",
+    "clipboardWrite"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "images/icon16.png",
+      "48": "images/icon48.png",
+      "128": "images/icon128.png"
+    },
+    "default_title": "Local Text Search"
+  },
+  "options_page": "options.html",
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"]
+    }
+  ],
+  "icons": {
+    "16": "images/icon16.png",
+    "48": "images/icon48.png",
+    "128": "images/icon128.png"
+  }
+}
